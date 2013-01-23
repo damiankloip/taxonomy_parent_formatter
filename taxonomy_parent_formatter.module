@@ -1,0 +1,112 @@
+<?php
+
+/**
+ * @file
+ * Taxonomy parent formatter module.
+ */
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function taxonomy_parent_formatter_field_formatter_info() {
+  return array(
+    'taxonomy_parent_formatter_default' => array(
+      'label' => t('Taxonomy parents'),
+      'field types' => array('taxonomy_term_reference'),
+      'settings' => array(
+        'prefix_text' => t('Back to'),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_Settings_form().
+ */
+function taxonomy_parent_formatter_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  if ($display['type'] == 'taxonomy_parent_formatter_default') {
+    $form['prefix_text'] = array(
+      '#title' => t("Prefix text"),
+      '#description' => t('The text to prefix each term link with.'),
+      '#type' => 'textfield',
+      '#default_value' => $settings['prefix_text'],
+    );
+  }
+
+  return $form;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function taxonomy_parent_formatter_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  if (!empty($settings['prefix_text'])) {
+    $summary = t('Prefix text: "%prefix_text"', array('%prefix_text' => $settings['prefix_text']));
+  }
+  else {
+    $summary = t('No prefix text.');
+  }
+
+  return $summary;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function taxonomy_parent_formatter_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  switch ($display['type']) {
+    case 'taxonomy_parent_formatter_default':
+    // Prepare our prefix text.
+      $prefix_text = t('!text', array('!text' => field_filter_xss($display['settings']['prefix_text'])));
+      foreach ($items as $delta => $item) {
+        // Check we have a tid and get the parents.
+        if (isset($item['tid']) && ($parents = taxonomy_get_parents($item['tid']))) {
+          foreach ($parents as $parent) {
+            // Theme the term link with prefix text.
+            $element[$delta] = array(
+              '#theme' => 'taxonomy_parent_formatter_default',
+              '#term' => $parent,
+              '#prefix_text' => $prefix_text,
+            );
+          }
+        }
+      }
+      break;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function taxonomy_parent_formatter_theme() {
+  return array(
+    'taxonomy_parent_formatter_default' => array(
+      'variables' => array('term' => NULL, 'prefix_text' => NULL),
+      'template' => 'taxonomy-parent-formatter-default',
+    ),
+  );
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ *
+ * The prefix_text parameter is already passed into the theme function,
+ * translated and sanitized.
+ */
+function taxonomy_parent_formatter_preprocess_taxonomy_parent_formatter_default(&$variables) {
+  $term = $variables['term'];
+
+  // Prepare the term link.
+  $uri = entity_uri('taxonomy_term', $term);
+  $variables['term_link'] = l($term->name, $uri['path'], $uri['options']);
+}
