@@ -64,11 +64,23 @@ function taxonomy_parent_formatter_field_formatter_view($entity_type, $entity, $
 
   switch ($display['type']) {
     case 'taxonomy_parent_formatter_default':
+    // Build an array of tids from each field item.
+    $tids = array_map(function($item) {
+      if (!empty($item['tid'])) {
+        return $item['tid'];
+      }
+      else {
+        return NULL;
+      }
+    }, $items);
+
     // Prepare our prefix text.
       $prefix_text = t('!text', array('!text' => field_filter_xss($display['settings']['prefix_text'])));
-      foreach ($items as $delta => $item) {
+
+      // Filter out duplicate values and iterate over those.
+      foreach (array_unique($tids) as $delta => $tid) {
         // Check we have a tid and get the parents.
-        if (isset($item['tid']) && ($parents = taxonomy_get_parents($item['tid']))) {
+        if ($parents = taxonomy_get_parents($tid)) {
           foreach ($parents as $parent) {
             // Theme the term link with prefix text.
             $element[$delta] = array(
