@@ -83,7 +83,7 @@ function taxonomy_parent_formatter_field_formatter_view($entity_type, $entity, $
         if ($parents = taxonomy_get_parents($tid)) {
           foreach ($parents as $parent) {
             // Theme the term link with prefix text.
-            $element[$delta] = array(
+            $element[$parent->tid] = array(
               '#theme' => 'taxonomy_parent_formatter_default',
               '#term' => $parent,
               '#prefix_text' => $prefix_text,
