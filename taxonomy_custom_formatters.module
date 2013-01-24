@@ -144,6 +144,40 @@ function taxonomy_custom_formatters_preprocess_taxonomy_custom_formatters_defaul
 
   // Suggestions
   $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $term->tid;
-  $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $field['field_name'];
-  $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $field['type'];
+  if (isset($field)) {
+    $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $field['field_name'];
+    $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $field['type'];
+  }
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function taxonomy_custom_formatters_menu_alter(&$items) {
+  // Unfortunately, there is no 'nice' way to modify a term listing page. So we
+  // are replacing the callback with out own, and wrapping the original callback
+  // so we can alter it before it's output.
+  $items['taxonomy/term/%taxonomy_term']['page callback'] = 'taxonomy_custom_formatters_term_page';
+}
+
+/**
+ * Menu callback function: This is a wrapper/proxy for taxonomy_term_page.
+ */
+function taxonomy_custom_formatters_term_page($term) {
+  $build = taxonomy_term_page($term);
+
+  if ($parents = taxonomy_get_parents($term->tid)) {
+    $build['taxonomy_custom_formatters_default'] = array();
+    $build['taxonomy_custom_formatters_default']['#weight'] = 10;
+    foreach ($parents as $parent) {
+      // Theme the term link with prefix text.
+      $build['taxonomy_custom_formatters_default'][$parent->tid] = array(
+        '#theme' => 'taxonomy_custom_formatters_default',
+        '#term' => $parent,
+        '#prefix_text' => t('Back to'),
+      );
+    }
+  }
+
+  return $build;
 }
