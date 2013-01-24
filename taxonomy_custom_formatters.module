@@ -1,0 +1,149 @@
+<?php
+
+/**
+ * @file
+ * Taxonomy custom formatters module.
+ */
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function taxonomy_custom_formatters_field_formatter_info() {
+  return array(
+    'taxonomy_custom_formatters_default' => array(
+      'label' => t('Custom taxonomy terms'),
+      'field types' => array('taxonomy_term_reference'),
+      'settings' => array(
+        'prefix_text' => t('Back to'),
+      ),
+    ),
+    'taxonomy_custom_formatters_parents' => array(
+      'label' => t('Custom taxonomy parents'),
+      'field types' => array('taxonomy_term_reference'),
+      'settings' => array(
+        'prefix_text' => t('Back to'),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_Settings_form().
+ */
+function taxonomy_custom_formatters_field_formatter_settings_form($field, $instance, $view_mode, $form, &$form_state) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  $form['prefix_text'] = array(
+    '#title' => t("Prefix text"),
+    '#description' => t('The text to prefix each term link with.'),
+    '#type' => 'textfield',
+    '#default_value' => $settings['prefix_text'],
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_field_formatter_settings_summary().
+ */
+function taxonomy_custom_formatters_field_formatter_settings_summary($field, $instance, $view_mode) {
+  $display = $instance['display'][$view_mode];
+  $settings = $display['settings'];
+
+  if (!empty($settings['prefix_text'])) {
+    $summary = t('Prefix text: "%prefix_text"', array('%prefix_text' => $settings['prefix_text']));
+  }
+  else {
+    $summary = t('No prefix text.');
+  }
+
+  return $summary;
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function taxonomy_custom_formatters_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  // Build an array of tids from each field item.
+  $tids = array_map(function($item) {
+    if (!empty($item['tid'])) {
+      return $item['tid'];
+    }
+    else {
+      return NULL;
+    }
+  }, $items);
+
+  // Prepare our prefix text.
+  $prefix_text = t('!text', array('!text' => field_filter_xss($display['settings']['prefix_text'])));
+
+  switch ($display['type']) {
+    case 'taxonomy_custom_formatters_default':
+      // Filter out duplicate values and iterate over those.
+      $terms = taxonomy_term_load_multiple(array_unique($tids));
+      foreach ($terms as $tid => $term) {
+        // Theme the term link with prefix text.
+        $element[$tid] = array(
+          '#theme' => 'taxonomy_custom_formatters_default',
+          '#term' => $term,
+          '#prefix_text' => $prefix_text,
+          '#field' => $field,
+        );
+      }
+    break;
+    case 'taxonomy_custom_formatters_parents':
+      // Filter out duplicate values and iterate over those.
+      foreach (array_unique($tids) as $delta => $tid) {
+        // Check we have a tid and get the parents.
+        if ($parents = taxonomy_get_parents($tid)) {
+          foreach ($parents as $parent) {
+            // Theme the term link with prefix text.
+            $element[$parent->tid] = array(
+              '#theme' => 'taxonomy_custom_formatters_default',
+              '#term' => $parent,
+              '#prefix_text' => $prefix_text,
+              '#field' => $field,
+            );
+          }
+        }
+      }
+    break;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function taxonomy_custom_formatters_theme() {
+  return array(
+    'taxonomy_custom_formatters_default' => array(
+      'variables' => array('term' => NULL, 'prefix_text' => NULL, 'field' => NULL),
+      'template' => 'taxonomy-custom-formatters-default',
+    ),
+  );
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ *
+ * The prefix_text parameter is already passed into the theme function,
+ * translated and sanitized.
+ */
+function taxonomy_custom_formatters_preprocess_taxonomy_custom_formatters_default(&$variables) {
+  $term = $variables['term'];
+  $field = $variables['field'];
+
+  // Prepare the term link.
+  $uri = entity_uri('taxonomy_term', $term);
+  $variables['term_link'] = l($term->name, $uri['path'], $uri['options']);
+
+  // Suggestions
+  $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $term->tid;
+  $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $field['field_name'];
+  $variables['theme_hook_suugestions'][] = 'taxonomy_custom_formatters_default__' . $field['type'];
+}

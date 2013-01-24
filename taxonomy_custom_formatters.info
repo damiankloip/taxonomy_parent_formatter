@@ -1,4 +1,4 @@
-name = Taxonomy parent field formatter
+name = Taxonomy custom field formatters
 description = A field formatter that only displays the direct parent taxonomy terms for a field, and not the full tree.
 core = 7.x
 package = fields
