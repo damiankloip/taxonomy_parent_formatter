@@ -24,6 +24,13 @@ function taxonomy_custom_formatters_field_formatter_info() {
         'prefix_text' => t('Back to'),
       ),
     ),
+    'taxonomy_custom_formatters_combined' => array(
+      'label' => t('Custom taxonomy terms and parents'),
+      'field types' => array('taxonomy_term_reference'),
+      'settings' => array(
+        'prefix_text' => t('Back to'),
+      ),
+    ),
   );
 }
 
@@ -110,6 +117,33 @@ function taxonomy_custom_formatters_field_formatter_view($entity_type, $entity, 
           }
         }
       }
+    break;
+    case 'taxonomy_custom_formatters_combined':
+      $terms = taxonomy_term_load_multiple(array_unique($tids));
+      // Filter out duplicate values and iterate over those.
+      foreach ($terms as $tid => $term) {
+        $element[] = array(
+          '#theme' => 'taxonomy_custom_formatters_default',
+          '#term' => clone $term,
+          '#prefix_text' => $prefix_text,
+          '#field' => $field,
+        );
+        // Check we have a tid and get the parents.
+        if ($parents = taxonomy_get_parents($tid)) {
+          foreach ($parents as $parent) {
+            // Theme the term link with prefix text.
+            $element[] = array(
+              '#theme' => 'taxonomy_custom_formatters_default',
+              '#term' => clone $parent,
+              '#prefix_text' => $prefix_text,
+              '#field' => $field,
+            );
+          }
+        }
+      }
+      // The expected numder of items is two, so we spoof this by nested the array
+      // by another level.
+      $element = array($element);
     break;
   }
 
